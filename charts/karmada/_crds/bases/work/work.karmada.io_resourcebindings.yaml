@@ -1281,6 +1281,16 @@ spec:
                           type: string
                         type: array
                     type: object
+                  scheduling:
+                    description: |-
+                      Scheduling controls whether scheduling should be suspended, the scheduler will pause scheduling and not
+                      process resource binding when the value is true and resume scheduling when it's false or nil.
+                      This is designed for third-party systems to temporarily pause the scheduling of applications, which enabling
+                      manage resource allocation, prioritize critical workloads, etc.
+                      It is expected that third-party systems use an admission webhook to suspend scheduling at the time of
+                      ResourceBinding creation. Once a ResourceBinding has been scheduled, it cannot be paused afterward, as it may
+                      lead to ineffective suspension.
+                    type: boolean
                 type: object
             required:
             - resource
@@ -1384,6 +1394,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               lastScheduledTime:
                 description: |-
                   LastScheduledTime representing the latest timestamp when scheduler successfully finished a scheduling.
