@@ -7461,7 +7461,7 @@ func schema_pkg_apis_work_v1alpha2_Suspension(ref common.ReferenceCallback) comm
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Suspension defines the policy for suspending of propagation.",
+				Description: "Suspension defines the policy for suspending of propagation, dispatching and scheduling suspension are independent of each other. The propagation suspension inherited from PropagationPolicy can be transparently transmitted here, and ResourceBinding can also set scheduling suspension separately.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"dispatching": {
@@ -7475,6 +7475,13 @@ func schema_pkg_apis_work_v1alpha2_Suspension(ref common.ReferenceCallback) comm
 						SchemaProps: spec.SchemaProps{
 							Description: "DispatchingOnClusters declares a list of clusters to which the dispatching should be suspended. Note: Can not co-exist with Dispatching which is used to suspend all.",
 							Ref:         ref("github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1.SuspendClusters"),
+						},
+					},
+					"scheduling": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Scheduling controls whether scheduling should be suspended, the scheduler will pause scheduling and not process resource binding after it's created when value is true and resume scheduling when it's false or nil. This is usually used for admission checks by third-party such as quota check, multi-tenancy prioritization and maybe more checks in the future before scheduler really does scheduling.",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},

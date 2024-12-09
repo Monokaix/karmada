@@ -1281,6 +1281,13 @@ spec:
                           type: string
                         type: array
                     type: object
+                  scheduling:
+                    description: |-
+                      Scheduling controls whether scheduling should be suspended, the scheduler will pause scheduling and not
+                      process resource binding after it's created when value is true and resume scheduling when it's false or nil.
+                      This is usually used for admission checks by third-party such as quota check, multi-tenancy prioritization
+                      and maybe more checks in the future before scheduler really does scheduling.
+                    type: boolean
                 type: object
             required:
             - resource

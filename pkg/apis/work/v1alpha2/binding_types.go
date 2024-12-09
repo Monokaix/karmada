@@ -322,9 +322,17 @@ type BindingSnapshot struct {
 	Clusters []TargetCluster `json:"clusters,omitempty"`
 }
 
-// Suspension defines the policy for suspending of propagation.
+// Suspension defines the policy for suspending of propagation, dispatching and scheduling suspension are independent
+// of each other. The propagation suspension inherited from PropagationPolicy can be transparently transmitted here,
+// and ResourceBinding can also set scheduling suspension separately.
 type Suspension struct {
 	policyv1alpha1.Suspension `json:",inline"`
+
+	// Scheduling controls whether scheduling should be suspended, the scheduler will pause scheduling and not
+	// process resource binding after it's created when value is true and resume scheduling when it's false or nil.
+	// This is usually used for admission checks by third-party such as quota check, multi-tenancy prioritization
+	// and maybe more checks in the future before scheduler really does scheduling.
+	Scheduling *bool `json:"scheduling,omitempty"`
 }
 
 // ResourceBindingStatus represents the overall status of the strategy as well as the referenced resources.
