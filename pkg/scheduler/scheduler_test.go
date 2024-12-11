@@ -36,6 +36,7 @@ import (
 	clienttesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/utils/ptr"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -158,6 +159,109 @@ func TestDoSchedule(t *testing.T) {
 					assert.Len(t, updated.Spec.Clusters, 1)
 					assert.Equal(t, "cluster1", updated.Spec.Clusters[0].Name)
 				}
+			}
+		})
+	}
+}
+
+func TestDoSchedule_SuspendedResourceBinding(t *testing.T) {
+	tests := []struct {
+		name    string
+		key     string
+		binding interface{}
+	}{
+		{
+			name: "Suspend rb, no scheduling",
+			key:  "default/test-binding",
+			binding: &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-binding",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Suspension: &policyv1alpha1.Suspension{
+						Scheduling: ptr.To(true),
+					},
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster1"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Suspend crb, no scheduling",
+			key:  "test-cluster-binding",
+			binding: &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster-binding",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Suspension: &policyv1alpha1.Suspension{
+						Scheduling: ptr.To(true),
+					},
+					Placement: &policyv1alpha1.Placement{
+						ClusterAffinity: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster1"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := karmadafake.NewSimpleClientset()
+			fakeRecorder := record.NewFakeRecorder(10)
+
+			var bindingLister *fakeBindingLister
+			var clusterBindingLister *fakeClusterBindingLister
+
+			if rb, ok := tt.binding.(*workv1alpha2.ResourceBinding); ok {
+				bindingLister = &fakeBindingLister{binding: rb}
+				_, err := fakeClient.WorkV1alpha2().ResourceBindings(rb.Namespace).Create(context.TODO(), rb, metav1.CreateOptions{})
+				assert.NoError(t, err)
+			}
+			if crb, ok := tt.binding.(*workv1alpha2.ClusterResourceBinding); ok {
+				clusterBindingLister = &fakeClusterBindingLister{binding: crb}
+				_, err := fakeClient.WorkV1alpha2().ClusterResourceBindings().Create(context.TODO(), crb, metav1.CreateOptions{})
+				assert.NoError(t, err)
+			}
+
+			mockAlgo := &mockAlgorithm{
+				scheduleFunc: func(_ context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *schedulercore.ScheduleAlgorithmOption) (schedulercore.ScheduleResult, error) {
+					return schedulercore.ScheduleResult{
+						SuggestedClusters: []workv1alpha2.TargetCluster{
+							{Name: "cluster1", Replicas: 1},
+						},
+					}, nil
+				},
+			}
+
+			s := &Scheduler{
+				KarmadaClient:        fakeClient,
+				eventRecorder:        fakeRecorder,
+				bindingLister:        bindingLister,
+				clusterBindingLister: clusterBindingLister,
+				Algorithm:            mockAlgo,
+			}
+
+			err := s.doSchedule(tt.key)
+			assert.NoError(t, err)
+
+			if rb, ok := tt.binding.(*workv1alpha2.ResourceBinding); ok {
+				updated, err := fakeClient.WorkV1alpha2().ResourceBindings(rb.Namespace).Get(context.TODO(), rb.Name, metav1.GetOptions{})
+				assert.NoError(t, err)
+				assert.Nil(t, updated.Spec.Clusters)
+				assert.Equal(t, rb.Generation, updated.Status.SchedulerObservedGeneration)
+			}
+			if crb, ok := tt.binding.(*workv1alpha2.ClusterResourceBinding); ok {
+				updated, err := fakeClient.WorkV1alpha2().ClusterResourceBindings().Get(context.TODO(), crb.Name, metav1.GetOptions{})
+				assert.NoError(t, err)
+				assert.Nil(t, updated.Spec.Clusters)
+				assert.Equal(t, crb.Generation, updated.Status.SchedulerObservedGeneration)
 			}
 		})
 	}

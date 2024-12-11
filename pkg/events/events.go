@@ -56,6 +56,8 @@ const (
 	EventReasonSyncWorkloadSucceed = "SyncSucceed"
 	// EventReasonWorkDispatching indicates that work is dispatching or not.
 	EventReasonWorkDispatching = "WorkDispatching"
+	// EventReasonBindingScheduling indicates that binding is scheduling or not.
+	EventReasonBindingScheduling = "BindingScheduling"
 )
 
 // Define events for ResourceBinding and ClusterResourceBinding objects.

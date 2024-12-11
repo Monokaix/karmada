@@ -358,6 +358,11 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		return nil
 	}
 
+	if util.IsBindingSuspendScheduling(rb) {
+		klog.V(4).InfoS("Skip schedule suspended ResourceBinding", "ResourceBinding", klog.KObj(rb))
+		return nil
+	}
+
 	rb = rb.DeepCopy()
 
 	if rb.Spec.Placement == nil {
@@ -425,6 +430,11 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 	if !crb.DeletionTimestamp.IsZero() {
 		s.recordScheduleResultEventForClusterResourceBinding(crb, nil, fmt.Errorf("skip schedule deleting clusterResourceBinding: %s", crb.Name))
 		klog.V(4).InfoS("Skip schedule deleting ClusterResourceBinding", "ClusterResourceBinding", klog.KObj(crb))
+		return nil
+	}
+
+	if util.IsClusterBindingSuspendScheduling(crb) {
+		klog.V(4).InfoS("Skip schedule suspended ClusterResourceBinding", "ClusterResourceBinding", klog.KObj(crb))
 		return nil
 	}
 
