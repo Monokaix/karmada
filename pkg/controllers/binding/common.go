@@ -18,6 +18,9 @@ package binding
 
 import (
 	"context"
+	"github.com/karmada-io/karmada/pkg/generated/applyconfiguration/work/v1alpha2"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	applyconfigurationsmetav1 "k8s.io/client-go/applyconfigurations/meta/v1"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -336,7 +339,7 @@ func shouldSuspendDispatching(suspension *workv1alpha2.Suspension, targetCluster
 	return suspendDispatching
 }
 
-func updateBindingDispatchingConditionIfNeeded(ctx context.Context, client client.Client, eventRecorder record.EventRecorder, binding client.Object, scope apiextensionsv1.ResourceScope) error {
+func updateBindingDispatchingConditionIfNeeded(ctx context.Context, client karmadaclientset.Interface, eventRecorder record.EventRecorder, binding client.Object, scope apiextensionsv1.ResourceScope) error {
 	newBindingSchedulingCondition := metav1.Condition{
 		Type:               workv1alpha2.SchedulingSuspended,
 		LastTransitionTime: metav1.Now(),
@@ -375,7 +378,8 @@ func updateBindingDispatchingConditionIfNeeded(ctx context.Context, client clien
 	if meta.IsStatusConditionPresentAndEqual(*conditions, newBindingSchedulingCondition.Type, newBindingSchedulingCondition.Status) {
 		return nil
 	}
-	if err := updateStatusCondition(ctx, client, binding, conditions, newBindingSchedulingCondition); err != nil {
+
+	if err := updateStatusCondition(ctx, client, binding, &newBindingSchedulingCondition); err != nil {
 		return err
 	}
 
@@ -388,11 +392,18 @@ func updateBindingDispatchingConditionIfNeeded(ctx context.Context, client clien
 	return nil
 }
 
-func updateStatusCondition(ctx context.Context, client client.Client, binding client.Object, condition *[]metav1.Condition, newCondition metav1.Condition) error {
-	_, err := helper.UpdateStatus(ctx, client, binding, func() error {
-		meta.SetStatusCondition(condition, newCondition)
-		return nil
-	})
+func updateStatusCondition(ctx context.Context, client karmadaclientset.Interface, binding client.Object, condition *metav1.Condition) error {
+	applyCondition := applyconfigurationsmetav1.Condition().
+		WithType(condition.Type).
+		WithStatus(condition.Status).
+		WithMessage(condition.Message).
+		WithReason(condition.Reason).
+		WithLastTransitionTime(condition.LastTransitionTime)
+	applyStatus := v1alpha2.ResourceBindingStatus().WithConditions(applyCondition)
+
+	applyRb := v1alpha2.ResourceBinding(binding.GetName(), binding.GetNamespace()).WithStatus(applyStatus)
+
+	_, err := client.WorkV1alpha2().ResourceBindings(binding.GetNamespace()).ApplyStatus(ctx, applyRb, metav1.ApplyOptions{FieldManager: names.KarmadaControllerManagerComponentName})
 	return err
 }
 

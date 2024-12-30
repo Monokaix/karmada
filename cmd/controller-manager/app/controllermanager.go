@@ -19,6 +19,7 @@ package app
 import (
 	"context"
 	"flag"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -344,6 +345,7 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 	bindingController := &binding.ResourceBindingController{
 		Client:              ctx.Mgr.GetClient(),
 		DynamicClient:       ctx.DynamicClientSet,
+		KarmadaClient:       ctx.KarmadaClient,
 		EventRecorder:       ctx.Mgr.GetEventRecorderFor(binding.ControllerName),
 		RESTMapper:          ctx.Mgr.GetRESTMapper(),
 		OverrideManager:     ctx.OverrideManager,
@@ -358,6 +360,7 @@ func startBindingController(ctx controllerscontext.Context) (enabled bool, err e
 	clusterResourceBindingController := &binding.ClusterResourceBindingController{
 		Client:              ctx.Mgr.GetClient(),
 		DynamicClient:       ctx.DynamicClientSet,
+		KarmadaClient:       ctx.KarmadaClient,
 		EventRecorder:       ctx.Mgr.GetEventRecorderFor(binding.ClusterResourceBindingControllerName),
 		RESTMapper:          ctx.Mgr.GetRESTMapper(),
 		OverrideManager:     ctx.OverrideManager,
@@ -375,6 +378,7 @@ func startBindingStatusController(ctx controllerscontext.Context) (enabled bool,
 	rbStatusController := &status.RBStatusController{
 		Client:              ctx.Mgr.GetClient(),
 		DynamicClient:       ctx.DynamicClientSet,
+		KarmadaClient:       ctx.KarmadaClient,
 		InformerManager:     ctx.ControlPlaneInformerManager,
 		ResourceInterpreter: ctx.ResourceInterpreter,
 		EventRecorder:       ctx.Mgr.GetEventRecorderFor(status.RBStatusControllerName),
@@ -735,6 +739,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
 	kubeClientSet := kubeclientset.NewForConfigOrDie(restConfig)
+	karmadaClientSet := karmadaclientset.NewForConfigOrDie(restConfig)
 
 	overrideManager := overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor(overridemanager.OverrideManagerName))
 	skippedResourceConfig := util.NewSkippedResourceConfig()
@@ -821,6 +826,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		StopChan:                    stopChan,
 		DynamicClientSet:            dynamicClientSet,
 		KubeClientSet:               kubeClientSet,
+		KarmadaClient:               karmadaClientSet,
 		OverrideManager:             overrideManager,
 		ControlPlaneInformerManager: controlPlaneInformerManager,
 		ResourceInterpreter:         resourceInterpreter,

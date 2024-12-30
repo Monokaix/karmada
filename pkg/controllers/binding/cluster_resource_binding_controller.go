@@ -19,6 +19,7 @@ package binding
 import (
 	"context"
 	"fmt"
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -54,8 +55,9 @@ const ClusterResourceBindingControllerName = "cluster-resource-binding-controlle
 
 // ClusterResourceBindingController is to sync ClusterResourceBinding.
 type ClusterResourceBindingController struct {
-	client.Client                                                   // used to operate ClusterResourceBinding resources.
-	DynamicClient       dynamic.Interface                           // used to fetch arbitrary resources from api server.
+	client.Client                         // used to operate ClusterResourceBinding resources.
+	DynamicClient       dynamic.Interface // used to fetch arbitrary resources from api server.
+	KarmadaClient       karmadaclientset.Interface
 	InformerManager     genericmanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
 	EventRecorder       record.EventRecorder
 	RESTMapper          meta.RESTMapper
@@ -89,7 +91,7 @@ func (c *ClusterResourceBindingController) Reconcile(ctx context.Context, req co
 		return c.removeFinalizer(ctx, clusterResourceBinding)
 	}
 
-	if err := updateBindingDispatchingConditionIfNeeded(ctx, c.Client, c.EventRecorder, clusterResourceBinding, apiextensionsv1.ClusterScoped); err != nil {
+	if err := updateBindingDispatchingConditionIfNeeded(ctx, c.KarmadaClient, c.EventRecorder, clusterResourceBinding, apiextensionsv1.ClusterScoped); err != nil {
 		klog.ErrorS(err, "Failed to update binding condition.", "name", klog.KObj(clusterResourceBinding), "type", workv1alpha2.SchedulingSuspended)
 		return controllerruntime.Result{}, err
 	}

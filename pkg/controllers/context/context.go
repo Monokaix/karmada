@@ -17,6 +17,7 @@ limitations under the License.
 package context
 
 import (
+	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"regexp"
 	"time"
 
@@ -109,6 +110,7 @@ type Context struct {
 	StopChan                    <-chan struct{}
 	DynamicClientSet            dynamic.Interface
 	KubeClientSet               clientset.Interface
+	KarmadaClient               karmadaclientset.Interface
 	OverrideManager             overridemanager.OverrideManager
 	ControlPlaneInformerManager genericmanager.SingleClusterInformerManager
 	ResourceInterpreter         resourceinterpreter.ResourceInterpreter
